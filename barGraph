@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>D3.js Bar Graph</title>
+    <title>D3.js Function</title>
 
-    <script src="https://d3js.org/d3.v3.min.js"></script>
-    <meta name="description" content="D3byEX 4.1" />
+    <script src="https://d3js.org/d3.v6.min.js"></script>
     <meta charset="utf-8" />
   </head>
 
   <body>
     <button onclick="update()">Add dataset</button>
+    <button onclick="remove()">Remove dataset</button>
     <script>
       let jsonObj = [
         {
@@ -91,7 +91,7 @@
           ],
         },
       ];
-
+      // function for adding data, just call add_set(data) will do the job
       let counter = 2;
       const add_set = (arr) => {
         const ran = () => Math.floor(Math.random() * 20 + 1);
@@ -103,17 +103,11 @@
         };
         add(arr);
       };
-      // ^ above is function for update data, just call add_set(data) will do the job
-      const render = (data) => {
-        let selector = d3.select("body").selectAll("div").data(data);
-        let entering = selector
-          .enter()
-          .append("div")
-          .text((d) => d);
-        selector.text((d) => d);
-        let exiting = selector.exit();
-        exiting.remove();
-      }; //how to update data
+      // function for reomving data
+      const remove_set = (arr) => {
+        counter--;
+        arr.map((i) => i.values.pop());
+      };
 
       const draw = (data) => {
         //No.1 define the svg
@@ -125,7 +119,8 @@
         let svg = d3
           .select("body")
           .append("svg")
-          .attr({ width: totalWidth, height: totalHeight });
+          .attr("width", totalWidth)
+          .attr("height", totalHeight);
         //No.2 define mainGraph
         let mainGraph = svg
           .append("g")
@@ -135,16 +130,16 @@
           );
 
         //No.3 define axis
-        let x0 = d3.scale.ordinal().rangeRoundBands([0, graphWidth], 0.05),
-          x1 = d3.scale.ordinal();
-        let xAxis = d3.svg.axis().scale(x0).tickSize(0.3).orient("bottom");
+        let x0 = d3.scaleBand().rangeRound([0, graphWidth]).padding(0.05),
+          x1 = d3.scaleBand();
+        let xAxis = d3.axisBottom(x0).tickSize(0.3);
 
         let categoriesNames = data.map((d) => d.category);
         let dataSources = data[0].values.map((d) => d.source);
         x0.domain(categoriesNames);
-        x1.domain(dataSources).rangeRoundBands([0, x0.rangeBand()]);
-        let y = d3.scale.linear().range([graphHeight, 0]),
-          yAxis = d3.svg.axis().scale(y).tickSize(3).orient("left");
+        x1.domain(dataSources).rangeRound([0, x0.bandwidth()]);
+        let y = d3.scaleLinear().range([graphHeight, 0]),
+          yAxis = d3.axisLeft(y).tickSize(3);
         y.domain([
           0,
           d3.max(data, (data) => d3.max(data.values, (d) => d.value)),
@@ -182,30 +177,26 @@
           .append("g")
           .attr("class", "g")
           .attr("transform", (d) => "translate(" + x0(d.category) + ",0)");
-        let colorScale = d3.scale.category20();
+        let colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+
         barGraph
           .selectAll("rect")
           .data((d) => d.values) //get data.values for each category,only put data you need
           .enter()
           .append("rect")
-          .attr("width", x1.rangeBand()) // use x1's width
+          .attr("width", x1.bandwidth()) // use x1's width
           .attr("x", (d) => x1(d.source))
           .style("fill", (d) => colorScale(d.source))
+          .style("opacity", "0.6")
           .attr("y", (d) => y(0))
           .attr("height", (d) => graphHeight - y(0))
-          // .on("mouseover", (d) =>
-          //   d3.select(this).style("fill", d3.rgb(colorScale(d.source)).darker(2))
-          // )
-          // .on("mouseout", (d) =>
-          //   d3.select(this).style("fill", colorScale(d.source))
-          // );
-          .on("mouseover", function (d) {
+          .on("mouseover", function (e, d) {
             d3.select(this).style(
               "fill",
               d3.rgb(colorScale(d.source)).darker(1)
             );
           })
-          .on("mouseout", function (d) {
+          .on("mouseout", function (e, d) {
             d3.select(this).style("fill", colorScale(d.source));
           });
 
@@ -230,7 +221,8 @@
           .attr("x", graphWidth - 18)
           .attr("width", 18)
           .attr("height", 18)
-          .style("fill", (d) => colorScale(d));
+          .style("fill", (d) => colorScale(d))
+          .style("opacity", "0.5");
         legend
           .append("text")
           .attr("x", graphWidth - 24)
@@ -249,6 +241,12 @@
 
       const update = () => {
         add_set(jsonObj);
+        let svg = d3.select("body").select("svg");
+        svg.remove();
+        draw(jsonObj);
+      };
+      const remove = () => {
+        remove_set(jsonObj);
         let svg = d3.select("body").select("svg");
         svg.remove();
         draw(jsonObj);
