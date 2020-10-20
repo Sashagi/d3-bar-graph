@@ -177,6 +177,7 @@
           .append("g")
           .attr("class", "g")
           .attr("transform", (d) => "translate(" + x0(d.category) + ",0)");
+
         let colorScale = d3.scaleOrdinal(d3.schemeCategory10);
 
         barGraph
@@ -190,14 +191,17 @@
           .style("opacity", "0.6")
           .attr("y", (d) => y(0))
           .attr("height", (d) => graphHeight - y(0))
-          .on("mouseover", function (e, d) {
-            d3.select(this).style(
+          .attr("class", function (d) {
+            return "rect " + "color-" + colorScale(d.source).substring(1);
+          })
+          .on("mouseover", (e, d) => {
+            d3.select(e.currentTarget).style(
               "fill",
               d3.rgb(colorScale(d.source)).darker(1)
             );
           })
-          .on("mouseout", function (e, d) {
-            d3.select(this).style("fill", colorScale(d.source));
+          .on("mouseout", (e, d) => {
+            d3.select(event.currentTarget).style("fill", colorScale(d.source));
           });
 
         barGraph
@@ -235,7 +239,32 @@
           .duration(500)
           .delay((d, i) => 1300 + 100 * i)
           .style("opacity", "1");
+        legend
+          .on("mouseover", function (e, d) {
+            barGraph
+              .selectAll("rect.color-" + colorScale(d).substring(1))
+              .style("fill", d3.rgb(colorScale(d)).darker(1));
+          })
+          .on("mouseout", function (e, d) {
+            barGraph
+              .selectAll("rect.color-" + colorScale(d).substring(1))
+              .style("fill", d3.rgb(colorScale(d)));
+          });
       };
+      // const mouseover = (x) => {
+      //   let colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+      //   d3.select("svg")
+      //     .selectAll("rect")
+      //     .select(function (d) {
+      //       d === x ? this : null;
+      //     })
+      //     .style("fill", (e, d) => {
+      //       d3.select(e.currentTarget).style(
+      //         "fill",
+      //         d3.rgb(colorScale(d.source)).darker(1)
+      //       );
+      //     });
+      // };
 
       draw(jsonObj);
 
