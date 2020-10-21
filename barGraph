@@ -193,7 +193,7 @@
           .attr("height", (d) => graphHeight - y(0))
           .attr("class", function (d) {
             return "rect " + "color-" + colorScale(d.source).substring(1);
-          })
+          }) //add class to all the rect elements
           .on("mouseover", (e, d) => {
             d3.select(e.currentTarget).style(
               "fill",
@@ -244,27 +244,24 @@
             barGraph
               .selectAll("rect.color-" + colorScale(d).substring(1))
               .style("fill", d3.rgb(colorScale(d)).darker(1));
-          })
+          }) //select elements using class,and style
           .on("mouseout", function (e, d) {
             barGraph
               .selectAll("rect.color-" + colorScale(d).substring(1))
               .style("fill", d3.rgb(colorScale(d)));
-          });
+          })
+          .on("click", function (e, d) {
+            barGraph
+              .selectAll("rect.color-" + colorScale(d).substring(1))
+              .remove(); //remove selected elements
+            jsonObj.forEach((i) => {
+              i.values = i.values.filter((s) => s.source != d);
+            }); //update data
+            legend
+              .filter((x) => x === d)
+              .style("text-decoration", "line-through");
+          }); //cross out text
       };
-      // const mouseover = (x) => {
-      //   let colorScale = d3.scaleOrdinal(d3.schemeCategory10);
-      //   d3.select("svg")
-      //     .selectAll("rect")
-      //     .select(function (d) {
-      //       d === x ? this : null;
-      //     })
-      //     .style("fill", (e, d) => {
-      //       d3.select(e.currentTarget).style(
-      //         "fill",
-      //         d3.rgb(colorScale(d.source)).darker(1)
-      //       );
-      //     });
-      // };
 
       draw(jsonObj);
 
@@ -281,5 +278,6 @@
         draw(jsonObj);
       };
     </script>
+    hover legend to highlight data series, click legend to delete data series
   </body>
 </html>
