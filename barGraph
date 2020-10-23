@@ -112,7 +112,7 @@
       const draw = (data) => {
         //No.1 define the svg
         let graphWidth = 900,
-          graphHeight = 600;
+          graphHeight = 450;
         let margin = { top: 10, right: 10, bottom: 30, left: 85 };
         let totalWidth = graphWidth + margin.left + margin.right,
           totalHeight = graphHeight + margin.top + margin.bottom;
@@ -193,16 +193,7 @@
           .attr("height", (d) => graphHeight - y(0))
           .attr("class", function (d) {
             return "rect " + "color-" + colorScale(d.source).substring(1);
-          }) //add class to all the rect elements
-          .on("mouseover", (e, d) => {
-            d3.select(e.currentTarget).style(
-              "fill",
-              d3.rgb(colorScale(d.source)).darker(1)
-            );
-          })
-          .on("mouseout", (e, d) => {
-            d3.select(event.currentTarget).style("fill", colorScale(d.source));
-          });
+          }); //add class to all the rect elements
 
         barGraph
           .selectAll("rect")
@@ -211,6 +202,37 @@
           .duration(1000)
           .attr("y", (d) => y(d.value)) // y positon change to the value of each data
           .attr("height", (d) => graphHeight - y(d.value));
+
+        barGraph
+          .selectAll("rect")
+          .on("mouseover", (e, d) => {
+            barGraph
+              .selectAll("rect.color-" + colorScale(d.source).substring(1))
+              .style("fill", d3.rgb(colorScale(d.source)).darker(1)); //hover selected class
+            let textTranslator =
+              "translate(" + (x1.bandwidth() - 15) / 2 + ",0)"; //text occupy space as well, 15 is for the text
+            barGraph
+              .selectAll("text")
+              .data((data) => data.values) //don't need to change data here,simply just do it in text function
+              .enter()
+              .append("text")
+              .attr("class", "label")
+              .attr("transform", textTranslator)
+              .attr("x", (d) => x1(d.source))
+              .attr("y", (d) => y(d.value))
+              .text((i) => {
+                // doesn't matter which word to represent data, the one get from event is d
+                if (i.source === d.source) {
+                  return i.value; // **show only data has same source with selected one, very simple, don't change whole data
+                }
+              });
+          })
+          .on("mouseout", (e, d) => {
+            barGraph.selectAll("text").remove();
+            barGraph
+              .selectAll("rect.color-" + colorScale(d.source).substring(1))
+              .style("fill", d3.rgb(colorScale(d.source)));
+          });
         //No.6 set lengend
         let legend = mainGraph
           .selectAll(".legend")
