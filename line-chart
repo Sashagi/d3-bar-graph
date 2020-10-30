@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>D3.js Line_Chart</title>
+
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script src="https://d3js.org/d3-selection-multi.v1.min.js"></script>
+    <meta charset="utf-8" />
+    <style></style>
+  </head>
+
+  <body>
+    <script>
+      const data = [
+        {
+          category: "series_1",
+          values: [
+            { name: "A", value: 10 },
+            { name: "B", value: 21 },
+            { name: "C", value: 19 },
+            { name: "D", value: 23 },
+            { name: "E", value: 20 },
+          ],
+        },
+      ];
+      let counter = 1;
+      const add_set = (arr) => {
+        let copy = JSON.parse(JSON.stringify(arr[0]));
+        const random = () => Math.floor(Math.random() * 30 + 1);
+        const add = (arr) => {
+          counter++;
+          copy.values.map((i) => (i.value = random()));
+          copy.category = `series_${counter}`;
+          arr.push(copy);
+        };
+        add(arr);
+      };
+      add_set(data);
+
+      //No.1 define the svg
+      let graphWidth = 600,
+        graphHeight = 450;
+      let margin = { top: 60, right: 10, bottom: 30, left: 85 };
+      let totalWidth = graphWidth + margin.left + margin.right,
+        totalHeight = graphHeight + margin.top + margin.bottom;
+      let svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", totalWidth)
+        .attr("height", totalHeight);
+      //No.2 define mainGraph
+      let mainGraph = svg
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+      //No.3 define axises
+      let categoriesNames = data[0].values.map((d) => d.name);
+      let xScale = d3
+        .scalePoint()
+        .domain(categoriesNames)
+        .range([0, graphWidth]); // scalepoint make the axis starts with value compared with scaleBand
+      let colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+      colorScale.domain(data.map((d) => d.category));
+
+      let yScale = d3
+        .scaleLinear()
+        .range([graphHeight, 0])
+        .domain([
+          d3.min(data, (i) => d3.min(i.values, (x) => x.value)),
+          d3.max(data, (i) => d3.max(i.values, (x) => x.value)),
+        ]); //* If an arrow function is simply returning a single line of code, you can omit the statement brackets and the return keyword
+
+      //No.4 set axises
+      mainGraph
+        .append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate(0," + graphHeight + ")")
+        .call(d3.axisBottom(xScale));
+      mainGraph.append("g").attr("class", "y axis").call(d3.axisLeft(yScale));
+      //No.5 make lines
+      let lineGenerator = d3
+        .line()
+        .x((d) => xScale(d.name))
+        .y((d) => yScale(d.value))
+        .curve(d3.curveMonotoneX);
+
+      let path = mainGraph
+        .selectAll(".path")
+        .data(data.map((i) => i.values)) //data is array inside array, draw a line need this kind of data
+        .enter()
+        .append("path")
+        .attr("d", lineGenerator)
+        .attr("fill", "none")
+        .attr("stroke-width", 3)
+        .attr("stroke", (d, i) => colorScale(i)); //apply color to each array
+      const pathLength = path.node().getTotalLength();
+      const transitionPath = d3.transition().ease(d3.easeSin).duration(1500);
+      path
+        .attrs({
+          "stroke-dashoffset": pathLength * 2,
+          "stroke-dasharray": pathLength * 2,
+        })
+        .transition(transitionPath)
+        .attr("stroke-dashoffset", 0);
+      //No.6 append circles
+      let circleData = data.map((i) => i.values);
+      mainGraph
+        .selectAll(".circle-container")
+        .data(circleData) //array can't be used to draw circles, they need a single data
+        .enter()
+        .append("g")
+        .attrs({
+          class: "circle-container",
+          fill: (d, i) => console.log(d) || colorScale(i), //apply groups to the array, so each line fill different color
+          stroke: (d, i) => colorScale(i),
+        })
+        .selectAll("circle")
+        .data((d) => d) //now bind single data to the circle, that is each obj in side arrays
+        .enter()
+        .append("circle")
+        .attrs({
+          cx: (d) => xScale(d.name),
+          cy: (d) => yScale(d.value),
+          r: 3,
+          opacity: 0,
+        })
+        .transition()
+        .delay(1000)
+        .duration(100)
+        .attrs({
+          opacity: 1,
+          fill: "white",
+          "stroke-width": "1.5",
+        });
+
+      mainGraph
+        .selectAll("circle")
+        .on("mouseover", (e, d) => {
+          mainGraph
+            .selectAll("circle")
+            .transition()
+            .attrs({
+              r: (x) => (x === d ? 9 : 3), // only has effect on hovered one
+              fill: (x) => (x === d ? "" : "white"),
+            });
+        })
+        .on("mouseout", (e, d) => {
+          mainGraph.selectAll("circle").transition().attrs({
+            r: 3,
+            fill: "white",
+          });
+        });
+
+      //No.7 lengend
+      let legend = svg
+        .selectAll(".legend")
+        .data(data.map((d) => d.category).reverse())
+        .enter()
+        .append("g")
+        .attrs({
+          class: "legend",
+          transform: (d, i) => "translate(0," + i * 20 + ")",
+        })
+        .style("opacity", "0");
+      legend
+        .append("rect")
+        .attrs({ x: totalWidth - 18, y: 6, width: 18, height: 6 })
+        .styles({
+          fill: (d, i) => colorScale(i),
+          opacity: "0.5",
+        });
+      legend
+        .append("text")
+        .attrs({ x: totalWidth - 24, y: 6, dy: ".35em" })
+        .style("text-anchor", "end")
+        .text((d) => d);
+      legend
+        .transition()
+        .duration(500)
+        .delay((d, i) => 1300 + 100 * i)
+        .style("opacity", "1");
+    </script>
+  </body>
+</html>
