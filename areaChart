@@ -1,0 +1,196 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+
+    <script src="https://d3js.org/d3-selection-multi.v1.min.js"></script>
+  </head>
+
+  <body>
+    <svg width="700" height="500"></svg>
+    <script>
+      const arr = [
+        {
+          name: "A",
+          dataset_1: 5,
+          dataset_2: 6,
+        },
+        {
+          name: "B",
+          dataset_1: 7,
+          dataset_2: 22,
+        },
+        {
+          name: "C",
+          dataset_1: 33,
+          dataset_2: 23,
+        },
+        {
+          name: "D",
+          dataset_1: 20,
+          dataset_2: 12,
+        },
+        {
+          name: "E",
+          dataset_1: 21,
+          dataset_2: 15,
+        },
+        {
+          name: "F",
+          dataset_1: 15,
+          dataset_2: 18,
+        },
+      ];
+      //function for adding dataset
+      let counter = 2;
+      const add_set = (arr) => {
+        const ran = () => Math.floor(Math.random() * 20 + 1);
+        const add = (arr) => {
+          counter++;
+          arr.map((i) => (i[`dataset_${counter}`] = ran()));
+        };
+        add(arr);
+      };
+      //function for removing dataset
+      const remove_set = (arr) => {
+        arr.map((i) => delete i[`dataset_${counter}`]);
+        counter >= 1 ? counter-- : counter;
+      };
+
+      let svg, width, height, g;
+
+      let margin = { left: 50, right: 50, top: 15, bottom: 30 };
+      let colorScale = d3.scaleOrdinal().range(d3.schemeSet3);
+      let dataSets;
+
+      let categoriesNames, xScale, copy, yScale;
+      const setup = () => {
+        //No.1 define svg, this section runs only once
+        svg = d3.select("svg");
+        width = +svg.attr("width") - margin.left - margin.right;
+        height = +svg.attr("height") - margin.top - margin.bottom;
+        g = svg
+          .append("g")
+          .attr(
+            "transform",
+            "translate(" + margin.left + "," + margin.top + ")"
+          );
+        setAxes();
+        g.append("g")
+          .attr("class", "x axis")
+          .attr("transform", "translate(0," + height + ")")
+          .call(d3.axisBottom(xScale));
+
+        g.append("g").attr("class", "y axis").call(d3.axisLeft(yScale));
+      };
+
+      const setAxes = () => {
+        categoriesNames = arr.map((d) => d.name);
+        xScale = d3.scalePoint().domain(categoriesNames).range([0, width]); // scalepoint make the axis starts with value compared with scaleBand
+        copy = JSON.parse(JSON.stringify(arr));
+        copy.map((i) => delete i.name);
+        yScale = d3
+          .scaleLinear()
+          .range([height, 0])
+          .domain([0, d3.max(copy, (i) => Math.max(...Object.values(i)))]);
+      };
+      // repeat draw function
+      const draw = () => {
+        //No.2 update axes
+        setAxes();
+        g.select(".y.axis").call(d3.axisLeft(yScale));
+        g.select(".x.axis").call(d3.axisBottom(xScale));
+        dataSets = Object.keys(arr[0]).filter((i) => i !== "name");
+        colorScale.domain(dataSets);
+        //No.3 draw chart
+        let areaData = dataSets.map((i) => {
+          return {
+            id: i,
+            values: arr.map((d) => {
+              return { name: d.name, value: d[i] };
+            }),
+          };
+        });
+
+        let generator = d3
+          .area()
+          .curve(d3.curveMonotoneX)
+          .y0(yScale(0))
+          .x((d) => xScale(d.name))
+          .y1((d) => yScale(d.value));
+        let area = g.selectAll(".area").data(areaData);
+        area.exit().remove();
+        area
+          .enter()
+          .append("path")
+          .attr("class", "area")
+          .attr("opacity", 0.6)
+          .merge(area)
+          .attr("d", (d) => {
+            return generator(d.values);
+          })
+          .style("fill", (d) => colorScale(d.id))
+          .on("mouseover", (e, d) => {
+            d3.select(e.currentTarget).style(
+              "fill",
+              d3.rgb(colorScale(d.id)).darker(1)
+            );
+          })
+          .on("mouseout", (e, d) => {
+            d3.select(e.currentTarget).style("fill", d3.rgb(colorScale(d.id)));
+          });
+
+        //No.4 set legend
+        let legend = g.selectAll(".legend").data(dataSets.map((d) => d));
+
+        legend.exit().remove();
+        let newLegend = legend
+          .enter()
+          .append("g")
+          .attr("class", "legend")
+          .attr("transform", (d, i) => "translate(0," + i * 20 + ")")
+          .style("opacity", "0");
+        legend
+          .merge(newLegend)
+          .append("rect")
+          .attr("x", width + 18)
+          .attr("width", 18)
+          .attr("height", 18)
+          .style("fill", (d) => colorScale(d))
+          .style("opacity", "0.6");
+        legend
+          .merge(newLegend)
+          .append("text")
+          .attr("x", width + 12)
+          .attr("y", 6)
+          .attr("dy", ".35em")
+          .style("text-anchor", "end")
+          .text((d) => d);
+        legend
+          .merge(newLegend)
+          .transition()
+          .delay((d, i) => 100 * i)
+          .style("opacity", "1");
+      };
+
+      setup();
+      draw();
+      const update = () => {
+        add_set(arr);
+        draw();
+      };
+      const remove = () => {
+        remove_set(arr);
+        draw();
+      };
+      d3.select("body")
+        .append("button")
+        .text("Remove dataset")
+        .on("click", remove);
+      d3.select("body")
+        .append("button")
+        .text("Add dataset")
+        .on("click", update);
+    </script>
+  </body>
+</html>
