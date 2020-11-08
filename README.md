@@ -1,2 +1,2 @@
-# d3-bar-graph
-a flexible multi group bar graph
+# d3-charts
+flexible multi charts
