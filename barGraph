@@ -2,25 +2,33 @@
 <html>
   <head>
     <title>D3.js Bar Graph</title>
-
     <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script src="https://d3js.org/d3-selection-multi.v1.min.js"></script>
     <meta charset="utf-8" />
   </head>
-
+  <style type="text/css">
+    #my_centered_buttons {
+      display: flex;
+      justify-content: center;
+    }
+  </style>
   <body>
-    <button onclick="update()">Add dataset</button>
-    <button onclick="remove()">Remove dataset</button>
+    <div id="my_centered_buttons">
+      <button onclick="update()">Add dataset</button>
+      <button onclick="remove()">Remove dataset</button>
+    </div>
+
     <script>
       let jsonObj = [
         {
           category: "Jan",
           values: [
             {
-              value: 1,
+              value: 9,
               source: "dataset1",
             },
             {
-              value: 4,
+              value: 8,
               source: "dataset2",
             },
           ],
@@ -29,7 +37,7 @@
           category: "Feb",
           values: [
             {
-              value: 1,
+              value: 15,
               source: "dataset1",
             },
             {
@@ -42,7 +50,7 @@
           category: "Mar",
           values: [
             {
-              value: 3,
+              value: 16,
               source: "dataset1",
             },
             {
@@ -59,7 +67,7 @@
               source: "dataset1",
             },
             {
-              value: 9,
+              value: 16,
               source: "dataset2",
             },
           ],
@@ -68,7 +76,7 @@
           category: "May",
           values: [
             {
-              value: 5,
+              value: 10,
               source: "dataset1",
             },
             {
@@ -81,7 +89,7 @@
           category: "June",
           values: [
             {
-              value: 6,
+              value: 15,
               source: "dataset1",
             },
             {
@@ -91,10 +99,10 @@
           ],
         },
       ];
-      // function for adding data, just call add_set(data) will do the job
+      // function for adding data
       let counter = 2;
       const add_set = (arr) => {
-        const ran = () => Math.floor(Math.random() * 20 + 1);
+        const ran = () => Math.floor(Math.random() * 15 + 1);
         const add = (arr) => {
           counter++;
           arr.map((i) =>
@@ -103,48 +111,43 @@
         };
         add(arr);
       };
-      // function for reomving data
+      // function for removing data
       const remove_set = (arr) => {
         counter--;
         arr.map((i) => i.values.pop());
       };
+      //initial variables
+      let svg,
+        graphWidth,
+        graphHeight,
+        totalWidth,
+        totalHeight,
+        mainGraph,
+        barGraph,
+        legend;
+      let margin = { top: 10, right: 90, bottom: 30, left: 85 };
+      let colorScale = d3.scaleOrdinal().range(d3.schemeSet2);
 
-      const draw = (data) => {
-        //No.1 define the svg
-        let graphWidth = 900,
-          graphHeight = 450;
-        let margin = { top: 10, right: 10, bottom: 30, left: 85 };
-        let totalWidth = graphWidth + margin.left + margin.right,
-          totalHeight = graphHeight + margin.top + margin.bottom;
-        let svg = d3
+      const setup = () => {
+        //No.1 define svg, this section runs only once
+        graphWidth = 690;
+        graphHeight = 420;
+        totalWidth = graphWidth + margin.left + margin.right;
+        totalHeight = graphHeight + margin.top + margin.bottom;
+        svg = d3
           .select("body")
           .append("svg")
           .attr("width", totalWidth)
           .attr("height", totalHeight);
         //No.2 define mainGraph
-        let mainGraph = svg
+        mainGraph = svg
           .append("g")
           .attr(
             "transform",
             "translate(" + margin.left + "," + margin.top + ")"
           );
 
-        //No.3 define axis
-        let x0 = d3.scaleBand().rangeRound([0, graphWidth]).padding(0.05),
-          x1 = d3.scaleBand();
-        let xAxis = d3.axisBottom(x0).tickSize(0.3);
-
-        let categoriesNames = data.map((d) => d.category);
-        let dataSources = data[0].values.map((d) => d.source);
-        x0.domain(categoriesNames);
-        x1.domain(dataSources).rangeRound([0, x0.bandwidth()]);
-        let y = d3.scaleLinear().range([graphHeight, 0]),
-          yAxis = d3.axisLeft(y).tickSize(3);
-        y.domain([
-          0,
-          d3.max(data, (data) => d3.max(data.values, (d) => d.value)),
-        ]);
-
+        setAxes(jsonObj);
         //No.4 set axis
         mainGraph
           .append("g")
@@ -155,54 +158,68 @@
           .append("g")
           .attr("class", "y axis")
           .style("opacity", "0")
-          .call(yAxis)
-          .append("text")
-          .attr("transform", "rotate(-90)")
-          .attr("y", 6)
-          .attr("dy", ".71em")
-          .style("text-anchor", "end")
-          .style("font-weight", "bold")
-          .text("Value");
+          .call(yAxis);
         mainGraph
           .select(".y")
           .transition()
           .duration(500)
           .delay(1300)
           .style("opacity", "1");
-        //No.5 set bars
-        let barGraph = mainGraph
+        barGraph = mainGraph
           .selectAll(".bar")
-          .data(data)
+          .data(jsonObj)
           .enter()
           .append("g")
-          .attr("class", "g")
+          .attr("class", "bar")
           .attr("transform", (d) => "translate(" + x0(d.category) + ",0)");
+      };
+      let xAxis, yAxis, categoriesNames, dataSources, x0, x1, y;
+      const setAxes = (data) => {
+        //No.3 define axes
+        x0 = d3.scaleBand().rangeRound([0, graphWidth]).padding(0.05);
+        x1 = d3.scaleBand();
+        xAxis = d3.axisBottom(x0).tickSize(0.3);
+        categoriesNames = data.map((d) => d.category);
+        dataSources = data[0].values.map((d) => d.source);
+        x0.domain(categoriesNames);
+        x1.domain(dataSources).rangeRound([0, x0.bandwidth()]);
+        y = d3.scaleLinear().range([graphHeight, 0]);
+        yAxis = d3.axisLeft(y).tickSize(3);
+        y.domain([
+          0,
+          d3.max(data, (data) => d3.max(data.values, (d) => d.value)),
+        ]);
+      };
 
-        let colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+      const draw = (data) => {
+        setAxes(data);
+        // update axes
+        mainGraph.select(".y.axis").call(yAxis);
+        mainGraph.select(".x.axis").call(xAxis);
 
-        barGraph
-          .selectAll("rect")
-          .data((d) => d.values) //get data.values for each category,only put data you need
+        //No.5 set and update bars
+        let bar = barGraph.selectAll("rect").data((d) => d.values);
+        bar.exit().remove();
+        bar
           .enter()
           .append("rect")
+          .merge(bar)
           .attr("width", x1.bandwidth()) // use x1's width
           .attr("x", (d) => x1(d.source))
           .style("fill", (d) => colorScale(d.source))
-          .style("opacity", "0.6")
-          .attr("y", (d) => y(0))
-          .attr("height", (d) => graphHeight - y(0))
+          .style("opacity", "1")
+          .attr("y", (d) => y(d.value)) // y positon change to the value of each data
+          .attr("height", (d) => graphHeight - y(d.value))
           .attr("class", function (d) {
             return "rect " + "color-" + colorScale(d.source).substring(1);
           }); //add class to all the rect elements
-
-        barGraph
+        bar
           .selectAll("rect")
           .transition()
           .delay((d) => Math.random() * 1000)
           .duration(1000)
           .attr("y", (d) => y(d.value)) // y positon change to the value of each data
           .attr("height", (d) => graphHeight - y(d.value));
-
         barGraph
           .selectAll("rect")
           .on("mouseover", (e, d) => {
@@ -220,12 +237,7 @@
               .attr("transform", textTranslator)
               .attr("x", (d) => x1(d.source))
               .attr("y", (d) => y(d.value))
-              .text((i) => {
-                // doesn't matter which word to represent data, the one get from event is d
-                if (i.source === d.source) {
-                  return i.value; // **show only data has same source with selected one, very simple, don't change whole data
-                }
-              });
+              .text((i) => (i.source === d.source ? i.value : ""));
           })
           .on("mouseout", (e, d) => {
             barGraph.selectAll("text").remove();
@@ -234,40 +246,43 @@
               .style("fill", d3.rgb(colorScale(d.source)));
           });
         //No.6 set lengend
-        let legend = mainGraph
+        legend = svg
           .selectAll(".legend")
-          .data(data[0].values.map((d) => d.source).reverse())
+          .data(data[0].values.map((d) => d.source));
+        legend.exit().remove();
+        let newLegend = legend
           .enter()
           .append("g")
           .attr("class", "legend")
-          .attr("transform", (d, i) => "translate(0," + i * 20 + ")")
-          .style("opacity", "0");
-        legend
-          .append("rect")
-          .attr("x", graphWidth - 18)
-          .attr("width", 18)
-          .attr("height", 18)
-          .style("fill", (d) => colorScale(d))
-          .style("opacity", "0.5");
-        legend
+          .attr("transform", (d, i) => "translate(0," + i * 20 + ")");
+        newLegend
           .append("text")
-          .attr("x", graphWidth - 24)
-          .attr("y", 9)
-          .attr("dy", ".35em")
-          .style("text-anchor", "end")
+          .datum((d) => d)
+          .attrs({ x: totalWidth - 18, y: 9, dy: ".35em" })
+          .style("text-anchor", "end");
+        newLegend
+          .append("rect")
+          .attrs({ x: totalWidth - 15, width: 18, height: 18 });
+        newLegend.transition().duration(500).style("opacity", "1");
+        legend = newLegend.merge(legend);
+        legend
+          .style("text-decoration", null)
+          .select("text")
           .text((d) => d);
-        legend
-          .transition()
-          .duration(500)
-          .delay((d, i) => 1300 + 100 * i)
-          .style("opacity", "1");
-        legend
+        legend.styles({ fill: (d) => colorScale(d), opacity: "1" });
+        newLegend
           .on("mouseover", function (e, d) {
+            newLegend
+              .filter((x) => x === d)
+              .style("fill", (d) => d3.rgb(colorScale(d)).darker(1));
             barGraph
               .selectAll("rect.color-" + colorScale(d).substring(1))
               .style("fill", d3.rgb(colorScale(d)).darker(1));
           }) //select elements using class,and style
           .on("mouseout", function (e, d) {
+            newLegend
+              .filter((x) => x === d)
+              .style("fill", (d) => d3.rgb(colorScale(d)));
             barGraph
               .selectAll("rect.color-" + colorScale(d).substring(1))
               .style("fill", d3.rgb(colorScale(d)));
@@ -279,27 +294,25 @@
             jsonObj.forEach((i) => {
               i.values = i.values.filter((s) => s.source != d);
             }); //update data
-            legend
+            newLegend
               .filter((x) => x === d)
               .style("text-decoration", "line-through");
           }); //cross out text
       };
-
+      setup();
       draw(jsonObj);
 
       const update = () => {
         add_set(jsonObj);
-        let svg = d3.select("body").select("svg");
-        svg.remove();
         draw(jsonObj);
       };
       const remove = () => {
         remove_set(jsonObj);
-        let svg = d3.select("body").select("svg");
-        svg.remove();
         draw(jsonObj);
       };
     </script>
-    hover legend to highlight data series, click legend to delete data series
+    <div style="text-align: center">
+      hover legend to highlight data series, click legend to delete data series
+    </div>
   </body>
 </html>
