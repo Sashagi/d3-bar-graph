@@ -2,7 +2,6 @@
 <html>
   <head>
     <title>D3.js Line_Chart</title>
-
     <script src="https://d3js.org/d3.v6.min.js"></script>
     <script src="https://d3js.org/d3-selection-multi.v1.min.js"></script>
     <meta charset="utf-8" />
@@ -12,7 +11,7 @@
     <button onclick="add()">Add data series</button>
     <button onclick="remove()">remove data series</button>
     <script>
-      const data = [
+      let data = [
         {
           category: "series_1",
           values: [
@@ -21,9 +20,11 @@
             { name: "C", value: 19 },
             { name: "D", value: 23 },
             { name: "E", value: 20 },
+            { name: "F", value: 30 },
           ],
         },
       ];
+      let data_0 = JSON.parse(JSON.stringify(data[0]));
 
       // function for adding data
       let counter = 1;
@@ -40,11 +41,12 @@
       };
       const add = () => {
         if (data.length === 0) {
-          location.reload();
+          data = [data_0];
+          setup();
+          draw(data);
+          counter++;
         } else {
           add_set(data);
-          let svg = d3.select("body").select("svg");
-          svg.remove();
           draw(data);
         }
       };
@@ -56,52 +58,45 @@
       const remove = () => {
         let svg = d3.select("body").select("svg");
         if (data.length === 1) {
-          counter--;
           remove_set(data);
           svg.remove();
         } else {
           remove_set(data);
-          svg.remove();
           draw(data);
         }
       };
+      //initial variables
+      let svg,
+        graphWidth,
+        graphHeight,
+        totalWidth,
+        totalHeight,
+        mainGraph,
+        pathGraph,
+        text,
+        legend;
+      let margin = { top: 60, right: 10, bottom: 30, left: 85 };
+      let colorScale = d3.scaleOrdinal().range(d3.schemeSet2);
 
-      const draw = (data) => {
-        //No.1 define the svg
-        let graphWidth = 690,
-          graphHeight = 450;
-        let margin = { top: 60, right: 10, bottom: 30, left: 85 };
-        let totalWidth = graphWidth + margin.left + margin.right,
-          totalHeight = graphHeight + margin.top + margin.bottom;
-        let svg = d3
+      const setup = () => {
+        //No.1 define svg, this section runs only once
+        graphWidth = 690;
+        graphHeight = 420;
+        totalWidth = graphWidth + margin.left + margin.right;
+        totalHeight = graphHeight + margin.top + margin.bottom;
+        svg = d3
           .select("body")
           .append("svg")
           .attr("width", totalWidth)
           .attr("height", totalHeight);
         //No.2 define mainGraph
-        let mainGraph = svg
+        mainGraph = svg
           .append("g")
           .attr(
             "transform",
             "translate(" + margin.left + "," + margin.top + ")"
           );
-        //No.3 define axises
-        let categoriesNames = data[0].values.map((d) => d.name);
-        let xScale = d3
-          .scalePoint()
-          .domain(categoriesNames)
-          .range([0, graphWidth - 90]); // scalepoint make the axis starts with value compared with scaleBand
-        let colorScale = d3.scaleOrdinal(d3.schemeCategory10);
-        colorScale.domain(data.map((d) => d.category));
-
-        let yScale = d3
-          .scaleLinear()
-          .range([graphHeight, 0])
-          .domain([
-            d3.min(data, (i) => d3.min(i.values, (x) => x.value)),
-            d3.max(data, (i) => d3.max(i.values, (x) => x.value)),
-          ]); //* If an arrow function is simply returning a single line of code, you can omit the statement brackets and the return keyword
-
+        setupAxes(data);
         //No.4 set axises
         mainGraph
           .append("g")
@@ -109,27 +104,63 @@
           .attr("transform", "translate(0," + graphHeight + ")")
           .call(d3.axisBottom(xScale));
         mainGraph.append("g").attr("class", "y axis").call(d3.axisLeft(yScale));
-        //No.5 make lines
-        let pathGroup = mainGraph
-          .selectAll(".pG")
-          .data(data) //data is array inside array, draw a line need this kind of data
-          .enter()
+        //pathGroup g
+        pathGroup = mainGraph
+          // .selectAll(".pG")
+          // .data(data) //data is array inside array, draw a line need this kind of data
+          // .enter()
           .append("g")
           .attr("class", "pG");
+      };
+
+      let xScale, yScale, categoriesNames, path;
+      const setupAxes = (arr) => {
+        //No.3 define axes
+        categoriesNames = arr[0].values.map((d) => d.name);
+        xScale = d3
+          .scalePoint()
+          .domain(categoriesNames)
+          .range([0, graphWidth - 126]); // scalepoint make the axis starts with value compared with scaleBand
+
+        yScale = d3
+          .scaleLinear()
+          .range([graphHeight, 0])
+          .domain([
+            d3.min(arr, (i) => d3.min(i.values, (x) => x.value)),
+            d3.max(arr, (i) => d3.max(i.values, (x) => x.value)),
+          ]); //* If an arrow function is simply returning a single line of code, you can omit the statement brackets and the return keyword
+      };
+      setup();
+
+      const draw = (data) => {
+        //update Axes
+        setupAxes(data);
+        mainGraph.select(".y.axis").call(d3.axisLeft(yScale));
+        mainGraph.select(".x.axis").call(d3.axisBottom(xScale));
+
+        //No.5 make lines
+
         let lineGenerator = d3
           .line()
           .x((d) => xScale(d.name))
           .y((d) => yScale(d.value))
           .curve(d3.curveMonotoneX);
+        path = pathGroup.selectAll(".path").data(data);
+        path.exit().remove();
 
-        let path = pathGroup
+        let line = path // need to use a new variable here, otherwise the animation(transition) won't work
+          .enter()
           .append("path")
+          .merge(path)
           .attr("d", (d) => lineGenerator(d.values))
           .attrs({ fill: "none", "stroke-width": 3, class: "path" })
-          .attr("stroke", (d, i) => colorScale(i)); //apply color to each array
-        const pathLength = path.node().getTotalLength();
+          .attr("stroke", (d, i) => colorScale(i));
+
+        //apply color to each array
+
+        const pathLength = line.node().getTotalLength();
         const transitionPath = d3.transition().ease(d3.easeSin).duration(1500);
-        path
+        line
           .attrs({
             "stroke-dashoffset": pathLength * 3,
             "stroke-dasharray": pathLength * 3,
@@ -138,14 +169,19 @@
           .attr("stroke-dashoffset", 0);
 
         //No. 6 append text
-        pathGroup
+        let textData = data.map((d) => {
+          return {
+            category: d.category,
+            value: d.values[d.values.length - 1],
+          };
+        });
+        let text = pathGroup.selectAll(".text").data(textData);
+        text.exit().remove();
+
+        text
+          .enter()
           .append("text")
-          .datum((d) => {
-            return {
-              category: d.category,
-              value: d.values[d.values.length - 1],
-            };
-          })
+          .attr("class", "text")
           .attr(
             "transform",
             (d) =>
@@ -161,7 +197,8 @@
           .transition()
           .delay(1000)
           .attr("opacity", 1);
-        //No.7 append mouse move effects
+        // //No.7 append mouse move effects
+        mainGraph.selectAll(".mouseEffects").remove();
         let mouseEffects = mainGraph.append("g").attr("class", "mouseEffects");
         mouseEffects.append("path").attr("class", "vline").styles({
           stroke: "gray",
@@ -247,10 +284,10 @@
             });
           });
 
-        //No.8 legend
-        let legend = svg
-          .selectAll(".legend")
-          .data(data.map((d) => d.category))
+        // //No.8 legend
+        legend = svg.selectAll(".legend").data(data.map((d) => d.category));
+        legend.exit().remove();
+        let newLegend = legend
           .enter()
           .append("g")
           .attrs({
@@ -258,22 +295,22 @@
             transform: (d, i) => "translate(0," + i * 20 + ")",
           })
           .style("opacity", "0");
-        legend
+        newLegend
           .append("rect")
           .attrs({ x: totalWidth - 18, y: 6, width: 18, height: 6 })
           .styles({
             fill: (d, i) => colorScale(i),
             opacity: "1",
           });
-        legend
+        newLegend
           .append("text")
           .attrs({ x: totalWidth - 24, y: 6, dy: ".35em" })
           .style("text-anchor", "end")
           .text((d) => d);
-        legend
+        newLegend
           .transition()
           .duration(500)
-          .delay((d, i) => 1300 + 100 * i)
+          .delay((d, i) => 300 + 100 * i)
           .style("opacity", "1");
       };
       draw(data);
